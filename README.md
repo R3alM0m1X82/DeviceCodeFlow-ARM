@@ -18,3 +18,15 @@ This repository contains a PowerShell script that demonstrates how to use **OAut
 1. Clone the repository:
    ```powershell
    git clone https://github.com/<your-repo>/DeviceCodeFlow-ARM.git
+
+Update the script with your Tenant ID:
+
+$tenantId  = "<your-tenant-id>"
+
+
+Run the script:
+
+.\DeviceCodeFlow-ARM.ps1
+
+
+Follow the instructions in the console (open the given URL and enter the device code).
