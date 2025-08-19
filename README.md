@@ -4,6 +4,16 @@ This repository contains a PowerShell script that demonstrates how to use **OAut
 
 ---
 
+## 👤 Author
+- **R3alM0m1X82**  
+- Version: **1.0**  
+- Date: **2025-08-19**
+
+---
+
+## 📜 License
+MIT — feel free to use it in demos, labs, or internal tooling.
+
 ## ✨ Features
 - 🔐 Authenticate to Azure using **Device Code Flow**
 - 📥 Retrieve **access token** and **refresh token**
@@ -26,7 +36,7 @@ This repository contains a PowerShell script that demonstrates how to use **OAut
 ## ⚙️ Setup
 1. **Clone the repository**
    ```powershell
-   git clone https://github.com/<your-repo>/DeviceCodeFlow-ARM.git
+   git clone https://github.com/R3alM0m1X82/DeviceCodeFlow-ARM.git
    cd DeviceCodeFlow-ARM
    ```
 
@@ -96,12 +106,4 @@ New Access Token obtained via refresh token.
 
 ---
 
-## 👤 Author
-- **R3alM0m1X82**  
-- Version: **1.0**  
-- Date: **2025-08-19**
 
----
-
-## 📜 License
-MIT — feel free to use it in demos, labs, or internal tooling.
