@@ -1,95 +1,29 @@
-<#
-.SYNOPSIS
-    Device Code Flow authentication for Azure Resource Manager (ARM).
+# 🔑 Azure Device Code Flow for ARM API
 
-.DESCRIPTION
-    This PowerShell script demonstrates how to use OAuth 2.0 Device Code Flow
-    to obtain an access token and refresh token from Azure AD,
-    and use the token against the Azure Resource Manager (ARM) API.
+This repository contains a PowerShell script that demonstrates how to use **OAuth 2.0 Device Code Flow** with Azure Active Directory to obtain an access token and call the **Azure Resource Manager (ARM)** API.
 
-.AUTHOR
-    R3alM0m1X82
+---
 
-.VERSION
-    1.0
+## ✨ Features
+- 🔐 Authenticate to Azure using **Device Code Flow**  
+- 📥 Retrieve **access token** and **refresh token**  
+- ☁️ Call Azure Resource Manager (`/subscriptions`) with the access token  
+- ♻️ Refresh tokens without re-authenticating  
 
-.DATE
-    2025-08-19
-#>
+---
 
-# ========================
-# === CONFIG VARIABLES ===
-# ========================
+## 🛠 Requirements
+- Windows PowerShell **5.1** or PowerShell **7+**
+- An **Azure AD tenant** (with Device Code Flow allowed)
+- A registered **Azure AD app** with:
+  - `Device Code Flow` enabled
+  - `https://management.azure.com/.default` delegated permission
 
-# Replace with your Azure AD tenant ID (GUID). Avoid using "common" in labs.
-$tenantId  = "<your-tenant-id>"
+---
 
-# Client ID of the registered application (public client, Device Code Flow enabled)
-$clientId  = "9ba1a5c7-f17a-4de9-a1f1-6178c8d51223"
+## 🚀 Usage
 
-# Scope required for ARM API (plus offline_access to receive a refresh token)
-$scope     = "https://management.azure.com/.default offline_access"
-
-# ========================
-# === STEP 1: DEVICE CODE REQUEST ===
-# ========================
-
-$body = @{
-    client_id = $clientId
-    scope     = $scope
-}
-
-$deviceCodeResponse = Invoke-RestMethod -Method Post -Uri "https://login.microsoftonline.com/$tenantId/oauth2/v2.0/devicecode" -Body $body
-
-# Show user instructions (URL + device code)
-Write-Host $deviceCodeResponse.message -ForegroundColor Yellow
-
-# ========================
-# === STEP 2: TOKEN POLLING ===
-# ========================
-
-$tokenUri = "https://login.microsoftonline.com/$tenantId/oauth2/v2.0/token"
-$tokenResponse = $null
-
-do {
-    Start-Sleep -Seconds $deviceCodeResponse.interval
-    try {
-        $tokenResponse = Invoke-RestMethod -Method Post -Uri $tokenUri -Body @{
-            grant_type  = "urn:ietf:params:oauth:grant-type:device_code"
-            client_id   = $clientId
-            device_code = $deviceCodeResponse.device_code
-        }
-    } catch {
-        # Keep polling until user completes authentication (authorization_pending/slow_down are expected)
-    }
-} while (-not $tokenResponse)
-
-# Extract tokens
-$accessToken  = $tokenResponse.access_token
-$refreshToken = $tokenResponse.refresh_token
-
-Write-Host "`nAccess Token obtained successfully." -ForegroundColor Green
-
-# ========================
-# === STEP 3: CALL ARM API ===
-# ========================
-
-# Example: list subscriptions
-$headers = @{ Authorization = "Bearer $accessToken" }
-Invoke-RestMethod -Uri "https://management.azure.com/subscriptions?api-version=2020-01-01" -Headers $headers | Out-Null
-
-# ========================
-# === STEP 4: REFRESH TOKEN (OPTIONAL) ===
-# ========================
-
-$refreshBody = @{
-    client_id     = $clientId
-    scope         = "https://management.azure.com/.default"
-    refresh_token = $refreshToken
-    grant_type    = "refresh_token"
-}
-
-$refreshedToken = Invoke-RestMethod -Method Post -Uri $tokenUri -Body $refreshBody
-$newAccessToken = $refreshedToken.access_token
-
-Write-Host "New Access Token obtained via refresh token." -ForegroundColor Cyan
+### 1️⃣ Clone the repository
+```powershell
+git clone https://github.com/<your-repo>/DeviceCodeFlow-ARM.git
+cd DeviceCodeFlow-ARM
