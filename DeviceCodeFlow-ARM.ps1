@@ -1,95 +1,59 @@
 <#
 .SYNOPSIS
-    Device Code Flow authentication for Azure Resource Manager (ARM).
-
-.DESCRIPTION
-    This PowerShell script demonstrates how to use OAuth 2.0 Device Code Flow
-    to obtain an access token and refresh token from Azure AD,
-    and use the token against the Azure Resource Manager (ARM) API.
+Device Code Flow to obtain Microsoft Graph token using Azure PowerShell ClientId.
+This token can be used to connect to Azure AD via Connect-AzAccount for delegated operations (e.g., reset password in AU).
 
 .AUTHOR
-    R3alM0m1X82
+R3alM0m1X82
 
 .VERSION
-    1.0
+1.0 - 2025-08-19
 
-.DATE
-    2025-08-19
+.NOTES
+This script uses the Azure PowerShell first-party ClientId (1950a258-227b-4e31-a9cf-717495945fc2)
+to obtain a delegated token for Graph with offline_access.
 #>
 
-# ========================
-# === CONFIG VARIABLES ===
-# ========================
+# Azure PowerShell ClientId (first-party)
+$ClientId = "1950a258-227b-4e31-a9cf-717495945fc2"
 
-# Replace with your Azure AD tenant ID (GUID). Avoid using "common" in labs.
-$tenantId  = "<your-tenant-id>"
+# Scope for Microsoft Graph - use only .default + offline_access
+$GraphScope = "https://graph.microsoft.com/.default offline_access"
 
-# Client ID of the registered application (public client, Device Code Flow enabled)
-$clientId  = "9ba1a5c7-f17a-4de9-a1f1-6178c8d51223"
+# Tenant ID (replace with your tenant)
+$TenantId = "<YOUR_TENANT_ID>"
 
-# Scope required for ARM API (plus offline_access to receive a refresh token)
-$scope     = "https://management.azure.com/.default offline_access"
-
-# ========================
-# === STEP 1: DEVICE CODE REQUEST ===
-# ========================
-
+# Device Code Flow request body
 $body = @{
-    client_id = $clientId
-    scope     = $scope
+    client_id = $ClientId
+    scope     = $GraphScope
 }
 
-$deviceCodeResponse = Invoke-RestMethod -Method Post -Uri "https://login.microsoftonline.com/$tenantId/oauth2/v2.0/devicecode" -Body $body
+# Request device code from Microsoft identity platform
+$authResponse = Invoke-RestMethod -Method Post -Uri "https://login.microsoftonline.com/$TenantId/oauth2/v2.0/devicecode" -Body $body -UseBasicParsing
+Write-Host "Please authenticate using the device code below:"
+Write-Host $authResponse.message
 
-# Show user instructions (URL + device code)
-Write-Host $deviceCodeResponse.message -ForegroundColor Yellow
-
-# ========================
-# === STEP 2: TOKEN POLLING ===
-# ========================
-
-$tokenUri = "https://login.microsoftonline.com/$tenantId/oauth2/v2.0/token"
-$tokenResponse = $null
+# Poll for token until user authenticates
+$tokenBody = @{
+    grant_type = "urn:ietf:params:oauth:grant-type:device_code"
+    client_id = $ClientId
+    device_code = $authResponse.device_code
+}
 
 do {
-    Start-Sleep -Seconds $deviceCodeResponse.interval
+    Start-Sleep -Seconds $authResponse.interval
     try {
-        $tokenResponse = Invoke-RestMethod -Method Post -Uri $tokenUri -Body @{
-            grant_type  = "urn:ietf:params:oauth:grant-type:device_code"
-            client_id   = $clientId
-            device_code = $deviceCodeResponse.device_code
-        }
+        $tokenResponse = Invoke-RestMethod -Method Post -Uri "https://login.microsoftonline.com/$TenantId/oauth2/v2.0/token" -Body $tokenBody -UseBasicParsing -ErrorAction Stop
     } catch {
-        # Keep polling until user completes authentication (authorization_pending/slow_down are expected)
+        $null = $_
     }
-} while (-not $tokenResponse)
+} until ($tokenResponse.access_token)
 
-# Extract tokens
-$accessToken  = $tokenResponse.access_token
-$refreshToken = $tokenResponse.refresh_token
+Write-Host "`nToken acquired successfully!"
+$GraphToken = $tokenResponse.access_token
 
-Write-Host "`nAccess Token obtained successfully." -ForegroundColor Green
+# Connect to Azure using Graph token
+Connect-AzAccount -AccountId "<HELPDESK_USER_UPN>" -MicrosoftGraphAccessToken $GraphToken -AccessToken $GraphToken -Tenant $TenantId
 
-# ========================
-# === STEP 3: CALL ARM API ===
-# ========================
-
-# Example: list subscriptions
-$headers = @{ Authorization = "Bearer $accessToken" }
-Invoke-RestMethod -Uri "https://management.azure.com/subscriptions?api-version=2020-01-01" -Headers $headers | Out-Null
-
-# ========================
-# === STEP 4: REFRESH TOKEN (OPTIONAL) ===
-# ========================
-
-$refreshBody = @{
-    client_id     = $clientId
-    scope         = "https://management.azure.com/.default"
-    refresh_token = $refreshToken
-    grant_type    = "refresh_token"
-}
-
-$refreshedToken = Invoke-RestMethod -Method Post -Uri $tokenUri -Body $refreshBody
-$newAccessToken = $refreshedToken.access_token
-
-Write-Host "New Access Token obtained via refresh token." -ForegroundColor Cyan
+Write-Host "`nConnected to Azure with Graph token. Ready to manage users (e.g., reset password in AU)."
